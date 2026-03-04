@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sean Lorenzo — MC Server Configurator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Outfit:wght@300;400;600;800;900&display=swap" rel="stylesheet">
+    <style>
+        /* ── Loader ── */
+        #loader {
+            position: fixed;
+            inset: 0;
+            z-index: 99999;
+            background: #08080c;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 2rem;
+            transition: opacity 0.6s ease, visibility 0.6s ease;
+        }
+        #loader.hide {
+            opacity: 0;
+            visibility: hidden;
+        }
+        .loader-logo {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            font-size: 1.4rem;
+            color: #ff69b4;
+            letter-spacing: -0.02em;
+            opacity: 0;
+            animation: loader-fade-in 0.6s 0.2s ease forwards;
+        }
+        .loader-logo span { color: #8888a0; }
+        .loader-bar-wrap {
+            width: 220px;
+            height: 2px;
+            background: rgba(255,105,180,0.1);
+            border-radius: 100px;
+            overflow: hidden;
+            opacity: 0;
+            animation: loader-fade-in 0.6s 0.4s ease forwards;
+        }
+        .loader-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #ff69b4, #ff1493);
+            border-radius: 100px;
+            animation: loader-progress 1.6s 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+            box-shadow: 0 0 12px rgba(255,20,147,0.5);
+        }
+        .loader-text {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.68rem;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            color: #8888a0;
+            opacity: 0;
+            animation: loader-fade-in 0.6s 0.6s ease forwards, loader-blink 1s 0.6s step-end infinite;
+        }
+        @keyframes loader-fade-in {
+            to { opacity: 1; }
+        }
+        @keyframes loader-progress {
+            0%   { width: 0%; }
+            40%  { width: 55%; }
+            70%  { width: 80%; }
+            100% { width: 100%; }
+        }
+        @keyframes loader-blink {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0.3; }
+        }
+        :root {
+            --pink: #ff69b4;
+            --hot-pink: #ff1493;
+            --deep-pink: #c70067;
+            --bg: #08080c;
+            --surface: #111118;
+            --surface-2: #1a1a24;
+            --text: #e8e8f0;
+            --text-dim: #8888a0;
+            --mono: 'JetBrains Mono', monospace;
+            --sans: 'Outfit', sans-serif;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: var(--sans);
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        ::selection {
+            background: var(--hot-pink);
+            color: #fff;
+        }
+
+        /* ── Scanline overlay ── */
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                rgba(0,0,0,0.03) 2px,
+                rgba(0,0,0,0.03) 4px
+            );
+            pointer-events: none;
+            z-index: 9999;
+        }
+
+        /* ── Top nav bar ── */
+        .topbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem 2.5rem;
+            background: rgba(8,8,12,0.85);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid rgba(255,105,180,0.1);
+            transition: box-shadow 0.3s;
+        }
+        .topbar.scrolled {
+            box-shadow: 0 4px 30px rgba(255,20,147,0.08);
+        }
+        .topbar-logo {
+            font-family: var(--mono);
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: var(--pink);
+            letter-spacing: -0.02em;
+        }
+        .topbar-logo span { color: var(--text-dim); }
+        .topbar-links {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+        }
+        .topbar-links a {
+            font-family: var(--mono);
+            font-size: 0.78rem;
+            color: var(--text-dim);
+            text-decoration: none;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            transition: color 0.2s;
+        }
+        .topbar-links a:hover { color: var(--pink); }
+
+        /* ── Hero ── */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            padding: 6rem 2rem 4rem;
+        }
+        /* Animated diagonal lines bg */
+        .hero::before {
+            content: '';
+            position: absolute;
+            inset: -50%;
+            background: repeating-linear-gradient(
+                -45deg,
+                transparent,
+                transparent 40px,
+                rgba(255,20,147,0.02) 40px,
+                rgba(255,20,147,0.02) 41px
+            );
+            animation: diag-drift 20s linear infinite;
+        }
+        @keyframes diag-drift {
+            to { transform: translate(56px, 56px); }
+        }
+        /* Glow orbs */
+        .hero-glow {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(120px);
+            opacity: 0.4;
+            pointer-events: none;
+        }
+        .hero-glow.a {
+            width: 500px; height: 500px;
+            background: var(--deep-pink);
+            top: -10%; left: -5%;
+            animation: float-a 8s ease-in-out infinite alternate;
+        }
+        .hero-glow.b {
+            width: 350px; height: 350px;
+            background: var(--hot-pink);
+            bottom: -5%; right: 5%;
+            animation: float-b 10s ease-in-out infinite alternate;
+        }
+        @keyframes float-a { to { transform: translate(60px, 40px); } }
+        @keyframes float-b { to { transform: translate(-40px, -30px); } }
+
+        .hero-content {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+            max-width: 800px;
+        }
+        .hero-tag {
+            display: inline-block;
+            font-family: var(--mono);
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            color: var(--hot-pink);
+            padding: 0.4rem 1.2rem;
+            border: 1px solid rgba(255,20,147,0.3);
+            border-radius: 100px;
+            margin-bottom: 1.8rem;
+            animation: fade-up 0.8s ease both;
+        }
+        .hero-name {
+            font-size: clamp(3.5rem, 10vw, 8rem);
+            font-weight: 900;
+            letter-spacing: -0.04em;
+            line-height: 0.9;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, #fff 0%, var(--pink) 50%, var(--hot-pink) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: fade-up 0.8s 0.1s ease both;
+        }
+        .hero-desc {
+            font-size: 1.15rem;
+            color: var(--text-dim);
+            max-width: 520px;
+            margin: 0 auto 2.5rem;
+            font-weight: 300;
+            animation: fade-up 0.8s 0.2s ease both;
+        }
+        .hero-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            animation: fade-up 0.8s 0.3s ease both;
+        }
+        .btn {
+            font-family: var(--mono);
+            font-size: 0.82rem;
+            padding: 0.75rem 2rem;
+            border-radius: 6px;
+            text-decoration: none;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            transition: all 0.25s;
+            cursor: pointer;
+            border: none;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--pink), var(--hot-pink));
+            color: #fff;
+            box-shadow: 0 4px 24px rgba(255,20,147,0.25);
+        }
+        .btn-primary:hover {
+            box-shadow: 0 6px 32px rgba(255,20,147,0.4);
+            transform: translateY(-2px);
+        }
+        .btn-ghost {
+            background: transparent;
+            color: var(--pink);
+            border: 1px solid rgba(255,105,180,0.3);
+        }
+        .btn-ghost:hover {
+            background: rgba(255,105,180,0.06);
+            border-color: var(--pink);
+        }
+
+        @keyframes fade-up {
+            from { opacity: 0; transform: translateY(24px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ── Sections ── */
+        .section {
+            padding: 6rem 2rem;
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+        .section-label {
+            font-family: var(--mono);
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.25em;
+            color: var(--hot-pink);
+            margin-bottom: 0.6rem;
+        }
+        .section-title {
+            font-size: 2.4rem;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            margin-bottom: 1rem;
+        }
+        .section-subtitle {
+            color: var(--text-dim);
+            font-weight: 300;
+            max-width: 560px;
+            margin-bottom: 3rem;
+        }
+
+        /* ── Project cards — horizontal stacked layout ── */
+        .projects-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        .project {
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            align-items: start;
+            gap: 1.8rem;
+            background: var(--surface);
+            border: 1px solid rgba(255,105,180,0.07);
+            border-radius: 12px;
+            padding: 2rem;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+        .project:hover {
+            border-color: rgba(255,105,180,0.2);
+            box-shadow: 0 0 40px rgba(255,20,147,0.05);
+        }
+        .project-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            flex-shrink: 0;
+            background: rgba(255,20,147,0.08);
+            border: 1px solid rgba(255,20,147,0.15);
+            color: var(--pink);
+        }
+        .project-body h3 {
+            font-size: 1.2rem;
+            font-weight: 700;
+            margin-bottom: 0.3rem;
+        }
+        .project-body .type-label {
+            font-family: var(--mono);
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: var(--hot-pink);
+            margin-bottom: 0.6rem;
+        }
+        .project-body p {
+            color: var(--text-dim);
+            font-size: 0.92rem;
+            font-weight: 300;
+            line-height: 1.65;
+        }
+        .project-tags {
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+            align-self: center;
+        }
+        .tag {
+            font-family: var(--mono);
+            font-size: 0.68rem;
+            padding: 0.3rem 0.7rem;
+            border-radius: 4px;
+            background: var(--surface-2);
+            color: var(--text-dim);
+            white-space: nowrap;
+            border: 1px solid rgba(255,255,255,0.04);
+        }
+
+        /* ── Skills — compact chip cloud ── */
+        .skills-section {
+            background: var(--surface);
+            border: 1px solid rgba(255,105,180,0.06);
+            border-radius: 24px;
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+        .skills-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 2.5rem;
+        }
+        .skill-group {
+            background: var(--surface-2);
+            border: 1px solid rgba(255,105,180,0.1);
+            border-radius: 20px;
+            padding: 1.5rem;
+        }
+        .skill-group h3 {
+            font-family: var(--mono);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: var(--pink);
+            margin-bottom: 1rem;
+            padding-bottom: 0.6rem;
+            border-bottom: 1px solid rgba(255,105,180,0.12);
+        }
+        .skill-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        .chip {
+            font-family: var(--mono);
+            font-size: 0.72rem;
+            padding: 0.35rem 0.8rem;
+            border-radius: 5px;
+            background: var(--surface-2);
+            color: var(--text-dim);
+            border: 1px solid rgba(255,255,255,0.04);
+            transition: all 0.2s;
+        }
+        .chip:hover {
+            color: var(--pink);
+            border-color: rgba(255,105,180,0.2);
+            background: rgba(255,20,147,0.06);
+        }
+
+        /* ── CTA ── */
+        .cta-section {
+            text-align: center;
+            padding: 6rem 2rem;
+        }
+        .cta-section .section-title {
+            margin-bottom: 0.8rem;
+        }
+        .cta-section p {
+            color: var(--text-dim);
+            font-weight: 300;
+            margin-bottom: 2rem;
+        }
+        .cta-discord {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.6rem;
+            font-family: var(--mono);
+            font-size: 0.85rem;
+            color: var(--pink);
+            text-decoration: none;
+            padding: 0.8rem 2rem;
+            border: 1px solid rgba(255,105,180,0.25);
+            border-radius: 8px;
+            transition: all 0.25s;
+        }
+        .cta-discord:hover {
+            background: rgba(255,105,180,0.06);
+            border-color: var(--pink);
+            box-shadow: 0 0 30px rgba(255,20,147,0.1);
+        }
+        .cta-discord svg { width: 18px; height: 18px; fill: var(--pink); }
+
+        /* ── Footer ── */
+        footer {
+            text-align: center;
+            padding: 2rem;
+            font-family: var(--mono);
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            border-top: 1px solid rgba(255,255,255,0.04);
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 768px) {
+            .topbar { padding: 0.8rem 1.2rem; }
+            .topbar-links { gap: 1rem; }
+            .topbar-links a { font-size: 0.7rem; }
+            .project {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+            .project-icon { display: none; }
+            .project-tags { flex-direction: row; flex-wrap: wrap; }
+            .section { padding: 4rem 1.2rem; }
+        }
+        @media (max-width: 480px) {
+            .hero-name { font-size: 3rem; }
+            .hero-actions { flex-direction: column; align-items: center; }
+        }
+
+        /* ── Modal ── */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 1000;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(6px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+        .modal-box {
+            background: var(--surface);
+            border: 1px solid rgba(255,105,180,0.2);
+            border-radius: 20px;
+            padding: 2.5rem;
+            max-width: 640px;
+            width: 100%;
+            max-height: 85vh;
+            overflow-y: auto;
+            position: relative;
+            box-shadow: 0 0 60px rgba(255,20,147,0.12), 0 20px 60px rgba(0,0,0,0.5);
+            transform: translateY(30px) scale(0.97);
+            transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
+            opacity: 0;
+        }
+        .modal-overlay.active .modal-box {
+            transform: translateY(0) scale(1);
+            opacity: 1;
+        }
+        .modal-close {
+            position: absolute;
+            top: 1.2rem;
+            right: 1.2rem;
+            background: rgba(255,105,180,0.1);
+            border: 1px solid rgba(255,105,180,0.2);
+            color: var(--pink);
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        .modal-close:hover {
+            background: rgba(255,20,147,0.2);
+            border-color: var(--pink);
+        }
+        .modal-type-label {
+            font-family: var(--mono);
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.18em;
+            color: var(--hot-pink);
+            background: rgba(255,20,147,0.1);
+            border: 1px solid rgba(255,20,147,0.2);
+            display: inline-block;
+            padding: 0.3rem 0.9rem;
+            border-radius: 100px;
+            margin-bottom: 1rem;
+        }
+        .modal-title {
+            font-size: 1.9rem;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            margin-bottom: 1.8rem;
+            color: var(--pink);
+        }
+        .modal-section-heading {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 0.7rem;
+            margin-top: 1.6rem;
+        }
+        .modal-text {
+            font-family: var(--mono);
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            line-height: 1.75;
+        }
+        .modal-features {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 0.55rem;
+        }
+        .modal-features li {
+            font-family: var(--mono);
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            padding-left: 1.4rem;
+            position: relative;
+            line-height: 1.6;
+        }
+        .modal-features li::before {
+            content: '✓';
+            position: absolute;
+            left: 0;
+            color: var(--pink);
+            font-weight: 700;
+        }
+        .project.clickable { cursor: pointer; }
+        .project.clickable:hover {
+            border-color: rgba(255,105,180,0.3);
+            box-shadow: 0 0 40px rgba(255,20,147,0.08);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Loader -->
+    <div id="loader">
+        <div class="loader-logo">philips123_o<span>.cfg</span></div>
+        <div class="loader-bar-wrap">
+            <div class="loader-bar"></div>
+        </div>
+        <div class="loader-text">Initializing...</div>
+    </div>
+
+    <!-- Top Bar -->
+    <nav class="topbar" id="topbar">
+        <div class="topbar-logo">philips123_o<span>.cfg</span></div>
+        <ul class="topbar-links">
+            <li><a href="javascript:void(0)" onclick="smoothScroll(event,'home')">Home</a></li>
+            <li><a href="javascript:void(0)" onclick="smoothScroll(event,'projects')">Projects</a></li>
+            <li><a href="javascript:void(0)" onclick="smoothScroll(event,'skills')">Skills</a></li>
+        </ul>
+    </nav>
+
+    <!-- Hero -->
+    <section class="hero" id="home">
+        <div class="hero-glow a"></div>
+        <div class="hero-glow b"></div>
+        <div class="hero-content">
+            <div class="hero-tag">Discord and Minecraft Server Configurator</div>
+            <h1 class="hero-name">Sean Lorenzo</h1>
+            <p class="hero-desc">Crafting polished Discord bots and finely tuned Minecraft server configurations — from economy systems to permission hierarchies.</p>
+            <div class="hero-actions">
+                <a href="javascript:void(0)" onclick="smoothScroll(event,'projects')" class="btn btn-ghost">View Work</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Projects -->
+    <section class="section" id="projects">
+        <div class="section-label">// Projects</div>
+        <h2 class="section-title">What I've Built</h2>
+        <p class="section-subtitle">Discord bots and Minecraft server systems designed for real communities.</p>
+
+        <div class="projects-list">
+            <!-- Vanish Bot -->
+            <article class="project clickable" onclick="openModal('vanish-bot-modal')">
+                <div class="project-icon">🤖</div>
+                <div class="project-body">
+                    <div class="type-label">Discord Bot</div>
+                    <h3>Vanish Discord Bot</h3>
+                    <p>Comprehensive moderation bot for the Vanish Guild from UltimisMC. Bilingual English/Arabic support, advanced permission systems, and automated member management.</p>
+                </div>
+                <div class="project-tags">
+                    <span class="tag">Discord.js</span>
+                    <span class="tag">Node.js</span>
+                    <span class="tag">JavaScript</span>
+                </div>
+            </article>
+
+            <!-- Vanish Bot Modal -->
+            <div class="modal-overlay" id="vanish-bot-modal" onclick="closeModalOutside(event, 'vanish-bot-modal')">
+                <div class="modal-box">
+                    <button class="modal-close" onclick="closeModal('vanish-bot-modal')">✕</button>
+                    <div class="modal-type-label">Discord Bot</div>
+                    <h2 class="modal-title">Vanish Discord Bot</h2>
+                    <h3 class="modal-section-heading">Overview</h3>
+                    <p class="modal-text">Comprehensive Discord moderation bot built for the Vanish Guild Discord server, this guild was created on the UltimisMC Minecraft server. This bot features advanced permission hierarchies, bilingual English/Arabic support, and sophisticated member management systems.</p>
+                    <h3 class="modal-section-heading">Key Features</h3>
+                    <ul class="modal-features">
+                        <li>Bilingual support (English/Arabic) across all commands</li>
+                        <li>Role-based permission system (Leader, Manager, Admin, Officer)</li>
+                        <li>Advanced moderation (warn, mute, kick, ban)</li>
+                        <li>Temporary role assignment system</li>
+                        <li>DM notification systems</li>
+                        <li>Clean embed formatting without visible user IDs</li>
+                    </ul>
+                    <h3 class="modal-section-heading">Technical Implementation</h3>
+                    <p class="modal-text">Built with Discord.js and Node.js, implementing complex command structures with over 10,000 lines of code. Utilizes slash commands, button interactions, and advanced permission checks for secure guild management.</p>
+                </div>
+            </div>
+
+            <!-- Games Bot -->
+            <article class="project clickable" onclick="openModal('games-bot-modal')">
+                <div class="project-icon">🎮</div>
+                <div class="project-body">
+                    <div class="type-label">Minigames Bot</div>
+                    <h3>Vanish Games Bot</h3>
+                    <p>All-in-one gaming bot with 11 interactive button-based games — Tic Tac Toe, Blackjack, Trivia and more. Cooldown systems and full game state management.</p>
+                </div>
+                <div class="project-tags">
+                    <span class="tag">Discord.js</span>
+                    <span class="tag">Slash Cmds</span>
+                    <span class="tag">Interactions</span>
+                </div>
+            </article>
+
+            <!-- Games Bot Modal -->
+            <div class="modal-overlay" id="games-bot-modal" onclick="closeModalOutside(event, 'games-bot-modal')">
+                <div class="modal-box">
+                    <button class="modal-close" onclick="closeModal('games-bot-modal')">✕</button>
+                    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1rem;">
+                        <div class="modal-type-label">Discord Bot</div>
+                        <div class="modal-type-label">Minigames Bot</div>
+                    </div>
+                    <h2 class="modal-title">Vanish Games Discord Bot</h2>
+                    <h3 class="modal-section-heading">Overview</h3>
+                    <p class="modal-text">All-in-one Discord gaming bot featuring 11 interactive button-based games with slash commands, cooldown systems, and comprehensive game state management. Built with 1,113 lines of production-ready code.</p>
+                    <h3 class="modal-section-heading">Available Games</h3>
+                    <ul class="modal-features">
+                        <li>Tic Tac Toe - Interactive board game with AI opponent</li>
+                        <li>Rock Paper Scissors - Classic choice game</li>
+                        <li>Trivia Quiz - Multiple categories (General, Science, History)</li>
+                        <li>Math Quiz - Difficulty levels (Easy, Medium, Hard)</li>
+                        <li>Dice Roll - Customizable dice games</li>
+                        <li>Coin Flip - Heads or tails prediction</li>
+                        <li>Magic 8-Ball - Fortune telling responses</li>
+                        <li>Higher or Lower - Number prediction game</li>
+                        <li>Blackjack - Full casino-style card game</li>
+                        <li>Guess the Number - Random number guessing</li>
+                        <li>Would You Rather - Community voting game</li>
+                    </ul>
+                    <h3 class="modal-section-heading">Technical Implementation</h3>
+                    <p class="modal-text">Built with Discord.js featuring slash commands, button interactions, embed builders, and action rows. Implements per-game cooldown systems, active game state tracking, and configurable game settings. Uses Collections for efficient data management and includes admin configuration commands.</p>
+                </div>
+            </div>
+
+            <!-- Economy -->
+            <article class="project">
+                <div class="project-icon">⚡</div>
+                <div class="project-body">
+                    <div class="type-label">Economy System</div>
+                    <h3>Custom Silver Currency</h3>
+                    <p>Full currency system using CoinsEngine with Vault integration, PlaceholderAPI support, and balanced economy settings for server-wide use.</p>
+                </div>
+                <div class="project-tags">
+                    <span class="tag">CoinsEngine</span>
+                    <span class="tag">Vault</span>
+                    <span class="tag">PAPI</span>
+                </div>
+            </article>
+
+            <!-- Rank Shop -->
+            <article class="project">
+                <div class="project-icon">🛒</div>
+                <div class="project-body">
+                    <div class="type-label">GUI System</div>
+                    <h3>Rank Shop Menu</h3>
+                    <p>Complete rank purchase system with DeluxeMenus — custom GUI, currency integration, and automated rank assignment through LuckPerms commands.</p>
+                </div>
+                <div class="project-tags">
+                    <span class="tag">DeluxeMenus</span>
+                    <span class="tag">LuckPerms</span>
+                    <span class="tag">YAML</span>
+                </div>
+            </article>
+
+            <!-- Permissions -->
+            <article class="project">
+                <div class="project-icon">🔐</div>
+                <div class="project-body">
+                    <div class="type-label">Permissions</div>
+                    <h3>Rank Hierarchy</h3>
+                    <p>Comprehensive permission system with custom rank hierarchy, animated prefixes, inheritance structure, and chat formatting integration.</p>
+                </div>
+                <div class="project-tags">
+                    <span class="tag">LuckPerms</span>
+                    <span class="tag">Permissions</span>
+                </div>
+            </article>
+
+            <!-- Scoreboard -->
+            <article class="project">
+                <div class="project-icon">📊</div>
+                <div class="project-body">
+                    <div class="type-label">Display System</div>
+                    <h3>Scoreboard System</h3>
+                    <p>Animated scoreboard displaying player rank, currency balance, and server stats. PlaceholderAPI integration for dynamic real-time updates.</p>
+                </div>
+                <div class="project-tags">
+                    <span class="tag">TAB</span>
+                    <span class="tag">PAPI</span>
+                    <span class="tag">Formatting</span>
+                </div>
+            </article>
+        </div>
+    </section>
+
+    <!-- Skills -->
+    <section class="section skills-section" id="skills">
+        <div class="section-label">// Skills</div>
+        <h2 class="section-title">Toolbox</h2>
+        <p class="section-subtitle">The technologies and tools I work with daily.</p>
+
+        <div class="skills-grid">
+            <div class="skill-group">
+                <h3>Bot Development</h3>
+                <div class="skill-chips">
+                    <span class="chip">Discord.js</span>
+                    <span class="chip">Slash Commands</span>
+                    <span class="chip">Button Interactions</span>
+                    <span class="chip">Embed Builders</span>
+                    <span class="chip">Permission Systems</span>
+                </div>
+            </div>
+            <div class="skill-group">
+                <h3>Configuration</h3>
+                <div class="skill-chips">
+                    <span class="chip">YAML Config</span>
+                    <span class="chip">Plugin Integration</span>
+                    <span class="chip">Economy Systems</span>
+                    <span class="chip">Perm Management</span>
+                </div>
+            </div>
+            <div class="skill-group">
+                <h3>Plugins</h3>
+                <div class="skill-chips">
+                    <span class="chip">LuckPerms</span>
+                    <span class="chip">CoinsEngine</span>
+                    <span class="chip">DeluxeMenus</span>
+                    <span class="chip">TAB Plugin</span>
+                </div>
+            </div>
+            <div class="skill-group">
+                <h3>Server Management</h3>
+                <div class="skill-chips">
+                    <span class="chip">Paper / Spigot</span>
+                    <span class="chip">PlaceholderAPI</span>
+                    <span class="chip">Vault</span>
+                    <span class="chip">System Debugging</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+
+
+    <!-- Footer -->
+    <footer>
+        &copy; 2026 Sean Lorenzo
+    </footer>
+
+    <script>
+        // Loader
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                document.getElementById('loader').classList.add('hide');
+            }, 2200);
+        });
+
+        // Modal functions
+        function openModal(id) {
+            const modal = document.getElementById(id);
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+        function closeModal(id) {
+            const modal = document.getElementById(id);
+            modal.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+        function closeModalOutside(event, id) {
+            if (event.target === document.getElementById(id)) closeModal(id);
+        }
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') document.querySelectorAll('.modal-overlay.active').forEach(m => {
+                m.classList.remove('active');
+                document.body.style.overflow = '';
+            });
+        });
+
+        // Smooth scroll nav
+        function smoothScroll(e, id) {
+            e.preventDefault();
+            document.getElementById(id).scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Topbar scroll effect
+        const topbar = document.getElementById('topbar');
+        window.addEventListener('scroll', () => {
+            topbar.classList.toggle('scrolled', window.scrollY > 40);
+        });
+
+        // Intersection Observer for fade-in
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                }
+            });
+        }, { threshold: 0.1 });
+
+        document.querySelectorAll('.project, .skill-group').forEach(el => {
+            el.style.opacity = '0';
+            el.style.transform = 'translateY(20px)';
+            el.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+            observer.observe(el);
+        });
+    </script>
+</body>
+</html>
